@@ -6,7 +6,6 @@
 <title>Pinned SJ</title>
 <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Libre+Franklin:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
-<link rel="stylesheet" href="css/vendors.css">
 </head>
 <body>
 <div class="bg"></div>
@@ -17,7 +16,6 @@
     <button class="nb on" id="nB" onclick="showBoards()">Boards</button>
     <button class="nb" id="nM" onclick="showMap()">Map</button>
     <button class="nb" onclick="scrollToday()">Today</button>
-    <button class="nb" id="nV" onclick="showVendors()">Vendors</button>
     <button class="nb" id="nAdmin" style="display:none;" onclick="showAdmin()">Admin</button>
   </div>
   <div class="csel">
@@ -140,29 +138,6 @@
       <button onclick="zMap(1.3)" style="background:rgba(218,184,112,.14);border:1px solid rgba(218,184,112,.28);color:#dab870;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:17px;">+</button>
       <button onclick="zMap(.77)" style="background:rgba(218,184,112,.14);border:1px solid rgba(218,184,112,.28);color:#dab870;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:17px;">-</button>
       <button onclick="rMap()" style="background:rgba(218,184,112,.14);border:1px solid rgba(218,184,112,.28);color:#dab870;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:14px;">O</button>
-    </div>
-  </div>
-</section>
-<section id="vendorSec" style="max-width:1060px;margin:0 auto;padding:0 14px 20px;display:none;">
-  <div class="sh" style="margin-bottom:12px;"><h2 style="font-family:'Special Elite',monospace;color:var(--cl);font-size:20px;">Vendor Hub</h2></div>
-  <div class="vtools">
-    <input class="vsearch" type="text" placeholder="Search vendors..." oninput="vSetSearch(this.value)">
-    <button class="vfav-btn" onclick="vToggleFavFilter(this)">&#9733; Favorites</button>
-  </div>
-  <div class="vtools">
-    <button class="cc on" onclick="vSetCat(this,'all')">All</button>
-    <button class="cc market" onclick="vSetCat(this,'market')">Markets</button>
-    <button class="cc foodhall" onclick="vSetCat(this,'foodhall')">Food Hall</button>
-    <button class="cc bars" onclick="vSetCat(this,'bars')">Bars &amp; Restaurants</button>
-    <button class="cc artwalk" onclick="vSetCat(this,'artwalk')">Art Walk</button>
-    <button class="cc cityart" onclick="vSetCat(this,'cityart')">City Art</button>
-    <button class="cc venue" onclick="vSetCat(this,'venue')">Theaters</button>
-    <button class="cc shop" onclick="vSetCat(this,'shop')">Shops</button>
-  </div>
-  <div class="frame">
-    <div class="cork">
-      <div class="rope"></div>
-      <div class="vfrow" id="vGrid"></div>
     </div>
   </div>
 </section>

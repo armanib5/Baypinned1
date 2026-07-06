@@ -309,6 +309,7 @@ function openDetail(id){
   var ico=C[ev.cat]?C[ev.cat].i:"&#128204;";
   var dp=document.getElementById("detPanel");
   dp.innerHTML="";
+  dp.dataset.eid=id;
 
   var xb=document.createElement("button");xb.className="xbtn";xb.textContent="X";
   xb.onclick=cls;dp.appendChild(xb);
@@ -352,6 +353,24 @@ function openDetail(id){
   if(ev.fp)igrid.appendChild(mkIbox("From Plaza",ev.fp));
   if(ev.fd)igrid.appendChild(mkIbox("From Diridon",ev.fd));
   body.appendChild(igrid);
+
+  var regVendors=typeof eventVendors==="function"?eventVendors(ev):[];
+  if(regVendors.length){
+    var rvsec=document.createElement("div");rvsec.className="vsec";
+    var rvh3=document.createElement("h3");rvh3.textContent="Registered Vendors";
+    rvsec.appendChild(rvh3);
+    regVendors.forEach(function(v){
+      var rvi=document.createElement("div");rvi.className="vi";rvi.style.cursor="pointer";
+      var vcat=C[v.cat]?C[v.cat].l:v.cat;
+      rvi.innerHTML="<strong>"+v.name+"</strong> &middot; "+vcat+(v.featured?" &middot; Featured":"")+(v.boost&&v.boost.active?" &middot; "+vBoostLabel(v.boost.tier):"");
+      rvi.addEventListener("click",(function(vid){return function(){openVendorDetail(vid);};})(v.id));
+      rvsec.appendChild(rvi);
+    });
+    var addV=document.createElement("button");addV.className="sugbtn";addV.textContent="+ Add Your Business";
+    addV.onclick=(function(cat){return function(){openVendorForm(cat);};})(ev.cat);
+    rvsec.appendChild(addV);
+    body.appendChild(rvsec);
+  }
 
   if(ev.vg&&ev.vg.length){
     var vsec=document.createElement("div");vsec.className="vsec";
@@ -550,21 +569,17 @@ function showBoards(){
   document.getElementById("bView").style.display="block";
   document.getElementById("tdwrap").style.display="block";
   document.getElementById("mapSec").style.display="none";
-  document.getElementById("vendorSec").style.display="none";
   document.getElementById("adminSec").style.display="none";
   document.getElementById("nB").classList.add("on");
   document.getElementById("nM").classList.remove("on");
-  document.getElementById("nV").classList.remove("on");
 }
 function showMap(){
   document.getElementById("bView").style.display="none";
   document.getElementById("tdwrap").style.display="none";
   document.getElementById("mapSec").style.display="block";
-  document.getElementById("vendorSec").style.display="none";
   document.getElementById("adminSec").style.display="none";
   document.getElementById("nM").classList.add("on");
   document.getElementById("nB").classList.remove("on");
-  document.getElementById("nV").classList.remove("on");
 }
 function scrollToday(){showBoards();document.getElementById("tdwrap").scrollIntoView({behavior:"smooth"});}
 function jumpTo(cat){
