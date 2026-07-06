@@ -2,7 +2,7 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{overflow-x:hidden;}
 body{font-family:'Libre Franklin',sans-serif;color:var(--ink);background:#1a0800;min-height:100vh;}
-.bg{position:fixed;inset:0;z-index:0;background:linear-gradient(180deg,rgba(15,8,0,.75),rgba(20,10,0,.55) 50%,rgba(12,6,0,.75)),url('background.jpg') center/cover fixed;background-color:#2a1400;transform-origin:center center;transition:transform .5s cubic-bezier(.2,.7,.3,1);will-change:transform;}
+.bg{position:fixed;inset:0;z-index:0;background:linear-gradient(180deg,rgba(15,8,0,.75),rgba(20,10,0,.55) 50%,rgba(12,6,0,.75)),url('../img/background.jpg') center/cover fixed;background-color:#2a1400;transform-origin:center center;transition:transform .5s cubic-bezier(.2,.7,.3,1);will-change:transform;}
 .page{position:relative;z-index:1;}
 .nav{position:sticky;top:0;z-index:900;background:rgba(12,6,0,.97);backdrop-filter:blur(14px);border-bottom:1px solid rgba(218,184,112,.18);display:flex;align-items:center;gap:10px;padding:10px 16px;flex-wrap:wrap;}
 .logo{font-family:'Special Elite',monospace;font-size:22px;color:var(--cl);letter-spacing:2px;flex-shrink:0;}
