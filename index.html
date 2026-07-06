@@ -6,6 +6,7 @@
 <title>Pinned SJ</title>
 <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Libre+Franklin:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/vendors.css">
 </head>
 <body>
 <div class="bg"></div>
@@ -16,6 +17,8 @@
     <button class="nb on" id="nB" onclick="showBoards()">Boards</button>
     <button class="nb" id="nM" onclick="showMap()">Map</button>
     <button class="nb" onclick="scrollToday()">Today</button>
+    <button class="nb" id="nV" onclick="showVendors()">Vendors</button>
+    <button class="nb" id="nAdmin" style="display:none;" onclick="showAdmin()">Admin</button>
   </div>
   <div class="csel">
     <select onchange="setCity(this.value)">
@@ -116,6 +119,7 @@
         <circle cx="352" cy="348" r="10" fill="#2c5f8a" stroke="#fff" stroke-width="2"/><text x="352" y="352" text-anchor="middle" font-size="11" fill="#fff" font-weight="bold">P</text>
         <text x="550" y="40" text-anchor="middle" font-family="Georgia,serif" font-size="20" fill="#4a3418" fill-opacity=".6" font-style="italic">Downtown San Jose</text>
         <g id="ePins"></g>
+        <g id="vPins"></g>
       </svg>
       <div class="mlg">
         <h4>Map Key</h4>
@@ -127,6 +131,7 @@
         <div class="li"><div class="ld" style="background:#8B0000"></div>Holiday</div>
         <div class="li"><div class="ld" style="background:#2c5f8a;border-radius:2px"></div>P Parking</div>
         <div class="li" style="color:#1565C0">Walk Route</div>
+        <div class="li"><div class="ld" style="background:#dab870;border-radius:3px"></div>Vendors (square)</div>
       </div>
       <div class="mcomp">N</div>
     </div>
@@ -137,11 +142,42 @@
     </div>
   </div>
 </section>
+<section id="vendorSec" style="max-width:1060px;margin:0 auto;padding:0 14px 20px;display:none;">
+  <div class="sh" style="margin-bottom:12px;"><h2 style="font-family:'Special Elite',monospace;color:var(--cl);font-size:20px;">Vendor Hub</h2></div>
+  <div class="vtools">
+    <input class="vsearch" type="text" placeholder="Search vendors..." oninput="vSetSearch(this.value)">
+    <button class="vfav-btn" onclick="vToggleFavFilter(this)">&#9733; Favorites</button>
+  </div>
+  <div class="vtools">
+    <button class="cc on" onclick="vSetCat(this,'all')">All</button>
+    <button class="cc market" onclick="vSetCat(this,'market')">Markets</button>
+    <button class="cc foodhall" onclick="vSetCat(this,'foodhall')">Food Hall</button>
+    <button class="cc artwalk" onclick="vSetCat(this,'artwalk')">Art Walk</button>
+    <button class="cc cityart" onclick="vSetCat(this,'cityart')">City Art</button>
+    <button class="cc venue" onclick="vSetCat(this,'venue')">Theaters</button>
+    <button class="cc shop" onclick="vSetCat(this,'shop')">Shops</button>
+  </div>
+  <div class="frame">
+    <div class="cork">
+      <div class="rope"></div>
+      <div class="vfrow" id="vGrid"></div>
+    </div>
+  </div>
+</section>
+<section id="adminSec" style="max-width:1060px;margin:0 auto;padding:0 14px 20px;display:none;">
+  <div class="sh" style="margin-bottom:12px;"><h2 style="font-family:'Special Elite',monospace;color:var(--cl);font-size:20px;">Admin - Vendor Moderation</h2></div>
+  <p style="color:rgba(218,184,112,.5);font-size:12.5px;margin-bottom:14px;">Placeholder moderation queue. Approve new listings and manage boosts until real accounts/roles exist.</p>
+  <div id="adminList" style="display:flex;flex-direction:column;gap:8px;"></div>
+</section>
 <footer>Pinned SJ &middot; Downtown San Jose &middot; Free for locals &middot; Pay only when you want to be featured</footer>
 </div>
 <div class="ov" id="detOv"><div class="dpanel" id="detPanel"></div></div>
 <div class="ov" id="frmOv"><div class="fpanel" id="frmPanel"></div></div>
+<div class="ov" id="vfrmOv"><div class="fpanel" id="vfrmPanel"></div></div>
 <div class="zov" id="zOv"><img id="zImg" src="" alt=""></div>
 <script src="js/app.js"></script>
+<script src="js/storage.js"></script>
+<script src="data/vendors.js"></script>
+<script src="js/vendors.js"></script>
 </body>
 </html>

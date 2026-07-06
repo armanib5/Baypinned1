@@ -505,15 +505,21 @@ function showBoards(){
   document.getElementById("bView").style.display="block";
   document.getElementById("tdwrap").style.display="block";
   document.getElementById("mapSec").style.display="none";
+  document.getElementById("vendorSec").style.display="none";
+  document.getElementById("adminSec").style.display="none";
   document.getElementById("nB").classList.add("on");
   document.getElementById("nM").classList.remove("on");
+  document.getElementById("nV").classList.remove("on");
 }
 function showMap(){
   document.getElementById("bView").style.display="none";
   document.getElementById("tdwrap").style.display="none";
   document.getElementById("mapSec").style.display="block";
+  document.getElementById("vendorSec").style.display="none";
+  document.getElementById("adminSec").style.display="none";
   document.getElementById("nM").classList.add("on");
   document.getElementById("nB").classList.remove("on");
+  document.getElementById("nV").classList.remove("on");
 }
 function scrollToday(){showBoards();document.getElementById("tdwrap").scrollIntoView({behavior:"smooth"});}
 function jumpTo(cat){
