@@ -12,6 +12,13 @@ function loadVendors() {
 }
 function saveVendors() { Storage.set(VDATA_KEY, vendors); }
 
+/* Runs immediately (not inside DOMContentLoaded) so `vendors` is already
+   populated by the time app.js's init() renders the boards - both files
+   listen for DOMContentLoaded, and app.js's listener was registered first
+   since its <script> tag comes first, so waiting until then would be too
+   late for the vendor lists on each flyer's back to have real data. */
+loadVendors();
+
 function getFavs() { return Storage.get(VFAV_KEY, []); }
 function isFav(id) { return getFavs().indexOf(id) >= 0; }
 function toggleFav(id) {
@@ -221,7 +228,7 @@ function renderAdminList() {
 /* ── ADD / EDIT FORM (a lightweight vendor dashboard placeholder — no
    real auth yet, so anyone can edit any listing, same permission model
    the existing event flyer form already uses) ── */
-function openVendorForm(defCat, vid) {
+function openVendorForm(defCat, vid, eventId) {
   var fp = document.getElementById("vfrmPanel");
   var opts = Object.entries(C).map(function (e) { return "<option value='" + e[0] + "'>" + e[1].l + "</option>"; }).join("");
   fp.innerHTML = "<div class='fi'><h2>" + (vid ? "Edit Your Business" : "Add Your Business") + "</h2>" +
@@ -238,6 +245,7 @@ function openVendorForm(defCat, vid) {
     "<div class='facts'><button class='bcan' id='vfrmCan'>Cancel</button><button class='bsub' id='vfrmSub'>Save Business</button></div>" +
     "</div>";
   fp.dataset.vid = vid || "";
+  fp.dataset.eventId = eventId || "";
   if (defCat) document.getElementById("vcat").value = defCat;
   document.getElementById("vfrmCan").onclick = vCls;
   document.getElementById("vfrmSub").onclick = subVendorForm;
@@ -263,6 +271,7 @@ function subVendorForm() {
   var name = document.getElementById("vn").value.trim();
   if (!name) { alert("Please add a business name."); return; }
   var vid = document.getElementById("vfrmPanel").dataset.vid;
+  var eventId = document.getElementById("vfrmPanel").dataset.eventId;
   var cat = document.getElementById("vcat").value;
   var v = {
     id: vid || "vu" + Date.now(), name: name, cat: cat,
@@ -274,7 +283,7 @@ function subVendorForm() {
     hours: {}, featured: false, verified: false,
     boost: { tier: null, active: false, until: "", radius: null },
     mx: 380 + (Math.random() - 0.5) * 120, my: 420 + (Math.random() - 0.5) * 80,
-    city: "sj", events: [], gallery: [], logo: "", cover: "", status: "pending"
+    city: "sj", events: eventId ? [eventId] : [], gallery: [], logo: "", cover: "", status: "pending"
   };
   function done() {
     if (vid) {
@@ -282,12 +291,15 @@ function subVendorForm() {
       if (i >= 0) {
         var old = vendors[i];
         v.hours = old.hours; v.featured = old.featured; v.boost = old.boost;
-        v.mx = old.mx; v.my = old.my; v.events = old.events; v.gallery = old.gallery; v.status = old.status;
+        v.mx = old.mx; v.my = old.my; v.gallery = old.gallery; v.status = old.status;
         v.logo = v.logo || old.logo; v.cover = v.cover || old.cover;
+        v.events = old.events || [];
+        if (eventId && v.events.indexOf(eventId) < 0) v.events.push(eventId);
         vendors[i] = v;
       }
     } else vendors.push(v);
     saveVendors(); vCls(); renderVendorPins();
+    if (typeof renderBoards === "function") renderBoards();
     if (document.getElementById("detOv").classList.contains("on") && document.getElementById("detPanel").dataset.eid) {
       openDetail(document.getElementById("detPanel").dataset.eid);
     }
@@ -308,7 +320,6 @@ function subVendorForm() {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-  loadVendors();
   renderVendorPins();
   maybeShowAdminNav();
 });

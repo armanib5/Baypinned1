@@ -278,8 +278,19 @@ function mkPinSlot(card,idx){
   return slot;
 }
 
+/* Each flyer flips in place to reveal the vendors attached to that event
+   (with boost/featured status front and center) instead of only opening
+   the full detail modal. The tilt (from mkPinSlot) is applied to the
+   outer .flyer-flip wrapper so front and back tilt together; the flip
+   rotation itself lives on .flyer-flip-inner, so the two transforms don't
+   collide. */
 function mkFlyer(ev){
   var ico=C[ev.cat]?C[ev.cat].i:"&#128204;";
+
+  var flip=document.createElement("div");flip.className="flyer-flip";flip.id="fflip-"+ev.id;
+  var inner=document.createElement("div");inner.className="flyer-flip-inner";
+
+  var front=document.createElement("div");front.className="flyer-front";
   var fc=document.createElement("div");fc.className="fc"+(ev.exp?" exp":"");
 
   var fimg=document.createElement("div");fimg.className="fimg"+(ev.photo?" hp":"");
@@ -288,6 +299,9 @@ function mkFlyer(ev){
     fimg.innerHTML=ico;
     if(ev.exp){var etag=document.createElement("div");etag.className="etag";etag.textContent="Past";fimg.appendChild(etag);}
   }
+  var infoBtn=document.createElement("button");infoBtn.className="fyf-info";infoBtn.textContent="i";infoBtn.title="Full event info";
+  infoBtn.addEventListener("click",(function(id){return function(e){e.stopPropagation();openDetail(id);};})(ev.id));
+  fimg.appendChild(infoBtn);
 
   var fb=document.createElement("div");fb.className="fb";
   var rib=document.createElement("span");rib.className="rib "+ev.cat;rib.textContent=ev.lbl;
@@ -297,9 +311,66 @@ function mkFlyer(ev){
   fb.appendChild(rib);fb.appendChild(h3);fb.appendChild(fw);fb.appendChild(fa);
 
   fc.appendChild(fimg);fc.appendChild(fb);
-  fc.addEventListener("click",(function(id){return function(){openDetail(id);};})(ev.id));
+  front.appendChild(fc);
+  front.addEventListener("click",function(){flip.classList.add("flipped");});
 
-  return fc;
+  var back=mkFlyerBack(ev,flip);
+
+  inner.appendChild(front);inner.appendChild(back);
+  flip.appendChild(inner);
+  return flip;
+}
+
+function mkFlyerBack(ev,flipEl){
+  var back=document.createElement("div");back.className="flyer-back";
+
+  var hdr=document.createElement("div");hdr.className="fyb-hdr";
+  var h4=document.createElement("h4");h4.textContent="Vendors";
+  var xb=document.createElement("button");xb.className="fyb-x";xb.textContent="×";
+  xb.addEventListener("click",function(e){e.stopPropagation();flipEl.classList.remove("flipped");});
+  hdr.appendChild(h4);hdr.appendChild(xb);
+  back.appendChild(hdr);
+
+  var list=document.createElement("div");list.className="fyb-list";
+  var linked=(typeof eventVendors==="function")?eventVendors(ev):[];
+  linked=linked.slice().sort(function(a,b){
+    var av=(a.featured?2:0)+(a.boost&&a.boost.active?1:0);
+    var bv=(b.featured?2:0)+(b.boost&&b.boost.active?1:0);
+    return bv-av;
+  });
+  if(linked.length){
+    linked.forEach(function(v){
+      var row=document.createElement("div");row.className="fyb-vendor";
+      var nm=document.createElement("span");nm.textContent=v.name;
+      row.appendChild(nm);
+      if(v.featured||(v.boost&&v.boost.active)){
+        var badge=document.createElement("span");badge.className="fyb-badge";
+        badge.textContent=(v.boost&&v.boost.active)?vBoostLabel(v.boost.tier):"Featured";
+        row.appendChild(badge);
+      }
+      row.addEventListener("click",(function(id){return function(e){e.stopPropagation();openVendorDetail(id);};})(v.id));
+      list.appendChild(row);
+    });
+  }else{
+    var none=document.createElement("div");none.className="fyb-none";
+    none.textContent="No vendors listed yet.";
+    list.appendChild(none);
+  }
+  back.appendChild(list);
+
+  var cta=document.createElement("div");cta.className="fyb-cta";
+  cta.textContent="Want your business seen here? Boost or feature your listing.";
+  back.appendChild(cta);
+
+  var footer=document.createElement("div");footer.className="fyb-footer";
+  var addBtn=document.createElement("button");addBtn.className="fyb-btn add";addBtn.textContent="+ Add Vendor";
+  addBtn.addEventListener("click",(function(cat,eid){return function(e){e.stopPropagation();openVendorForm(cat,"",eid);};})(ev.cat,ev.id));
+  var flipBtn=document.createElement("button");flipBtn.className="fyb-btn back";flipBtn.textContent="Flip Back";
+  flipBtn.addEventListener("click",function(e){e.stopPropagation();flipEl.classList.remove("flipped");});
+  footer.appendChild(addBtn);footer.appendChild(flipBtn);
+  back.appendChild(footer);
+
+  return back;
 }
 
 function openDetail(id){
@@ -367,7 +438,7 @@ function openDetail(id){
       rvsec.appendChild(rvi);
     });
     var addV=document.createElement("button");addV.className="sugbtn";addV.textContent="+ Add Your Business";
-    addV.onclick=(function(cat){return function(){openVendorForm(cat);};})(ev.cat);
+    addV.onclick=(function(cat,eid){return function(){openVendorForm(cat,"",eid);};})(ev.cat,ev.id);
     rvsec.appendChild(addV);
     body.appendChild(rvsec);
   }
