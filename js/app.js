@@ -231,7 +231,7 @@ function mkBoard(cat,items){
   bi.textContent=a+" active"+(p?" - "+p+" past":"");
   lbl.appendChild(dot);lbl.appendChild(h2);lbl.appendChild(bi);
 
-  var frame=document.createElement("div");frame.className="frame";
+  var frame=document.createElement("div");frame.className="frame compact";
   var cork=document.createElement("div");cork.className="cork";
   var stripWrap=document.createElement("div");stripWrap.className="strip-wrap";
   var stringLine=document.createElement("div");stringLine.className="string-line";
