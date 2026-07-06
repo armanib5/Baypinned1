@@ -1,13 +1,14 @@
 var C={
   market:{l:"Markets",i:"&#127805;",c:"#3d6b42"},
   foodhall:{l:"Food Hall",i:"&#127869;",c:"#b8860b"},
+  bars:{l:"Bars & Restaurants",i:"&#127864;",c:"#6b1e3c"},
   artwalk:{l:"Art Walk",i:"&#127912;",c:"#2c5f8a"},
   cityart:{l:"City Art",i:"&#127917;",c:"#6a4e7a"},
   venue:{l:"Theaters",i:"&#127963;",c:"#7a5230"},
   holiday:{l:"Holiday",i:"&#9917;",c:"#8B0000"},
   shop:{l:"Shops",i:"&#128717;",c:"#c0392b"}
 };
-var ORD=["market","foodhall","artwalk","cityart","venue","holiday","shop"];
+var ORD=["market","foodhall","bars","artwalk","cityart","venue","holiday","shop"];
 var CN={sj:"San Jose, CA",sc:"Santa Clara, CA",sv:"Sunnyvale, CA",mv:"Mountain View, CA",camp:"Campbell, CA"};
 var DEF=[
 {id:"fm",cat:"market",lbl:"Weekly Market",exp:false,
@@ -112,6 +113,35 @@ function init(){
   renderBoards();
   renderPins();
   setupPan();
+  setupBgParallax();
+}
+
+/* Background photo drifts and zooms slightly in the direction of whatever
+   the visitor is swiping/scrolling through (page scroll = vertical,
+   ticker/flyer strips = horizontal), so it feels like the scene is moving
+   with them rather than sitting static behind the corkboard. The .bg
+   layer is scaled up a bit as a buffer so panning never reveals its edges. */
+var bgX=0,bgY=0,bgScale=1.06;
+function applyBgTransform(){
+  var bg=document.querySelector(".bg");
+  if(bg)bg.style.transform="translate3d("+bgX+"px,"+bgY+"px,0) scale("+bgScale+")";
+}
+function bindStripParallax(el){
+  if(!el)return;
+  el.addEventListener("scroll",function(){
+    bgX=Math.max(-40,Math.min(40,el.scrollLeft*0.05));
+    bgScale=1.06+Math.min(Math.abs(el.scrollLeft)/2500,0.05);
+    applyBgTransform();
+  },{passive:true});
+}
+function setupBgParallax(){
+  window.addEventListener("scroll",function(){
+    bgY=Math.max(-40,Math.min(40,window.scrollY*0.04));
+    bgScale=1.06+Math.min(window.scrollY/3000,0.05);
+    applyBgTransform();
+  },{passive:true});
+  bindStripParallax(document.getElementById("tdCrds"));
+  bindStripParallax(document.getElementById("wkCrds"));
 }
 
 function load(){
@@ -183,7 +213,7 @@ function renderBoards(){
   bv.innerHTML="";
   ORD.forEach(function(cat){
     var items=evts.filter(function(e){return e.cat===cat;});
-    if(!items.length&&cat!=="venue"&&cat!=="shop")return;
+    if(!items.length&&cat!=="venue"&&cat!=="shop"&&cat!=="bars")return;
     bv.appendChild(mkBoard(cat,items));
   });
 }
@@ -203,36 +233,53 @@ function mkBoard(cat,items){
 
   var frame=document.createElement("div");frame.className="frame";
   var cork=document.createElement("div");cork.className="cork";
-  var rope=document.createElement("div");rope.className="rope";
-  var frow=document.createElement("div");frow.className="frow";
-  frow.id="fr-"+cat;
-  cork.appendChild(rope);cork.appendChild(frow);
+  var stripWrap=document.createElement("div");stripWrap.className="strip-wrap";
+  var stringLine=document.createElement("div");stringLine.className="string-line";
+  var fstrip=document.createElement("div");fstrip.className="fstrip";
+  fstrip.id="fr-"+cat;
+  stripWrap.appendChild(stringLine);stripWrap.appendChild(fstrip);
+  cork.appendChild(stripWrap);
   frame.appendChild(cork);
 
   sec.appendChild(lbl);sec.appendChild(frame);
 
+  var slotIdx=0;
   items.forEach(function(ev){
-    frow.appendChild(mkFlyer(ev));
+    fstrip.appendChild(mkPinSlot(mkFlyer(ev),slotIdx++));
   });
 
-  var addHu=document.createElement("div");addHu.className="hu";
   var afc=document.createElement("div");afc.className="afc";
   var ap=document.createElement("div");ap.className="ap";ap.textContent="+";
   var al=document.createElement("div");al.className="al";al.textContent="Post a Flyer";
   afc.appendChild(ap);afc.appendChild(al);
   afc.addEventListener("click",(function(c){return function(){openForm(c);};})(cat));
-  addHu.appendChild(afc);
-  frow.appendChild(addHu);
+  fstrip.appendChild(mkPinSlot(afc,slotIdx++));
+
+  while(slotIdx<4){
+    var empty=document.createElement("div");empty.className="fc-empty";
+    empty.addEventListener("click",(function(c){return function(){openForm(c);};})(cat));
+    fstrip.appendChild(mkPinSlot(empty,slotIdx++));
+  }
+
+  bindStripParallax(fstrip);
 
   return sec;
 }
 
+/* Wraps a card in a clothespin-clipped slot on the board's string.
+   Rotation is applied inline (rather than via CSS nth-child) since each
+   strip now scrolls instead of laying out in a fixed 3-column grid. */
+function mkPinSlot(card,idx){
+  var rotations=["-2deg","1.5deg","-1deg"];
+  card.style.transform="rotate("+rotations[idx%3]+")";
+  var slot=document.createElement("div");slot.className="pin-slot";
+  var pin=document.createElement("div");pin.className="clothespin";
+  slot.appendChild(pin);slot.appendChild(card);
+  return slot;
+}
+
 function mkFlyer(ev){
   var ico=C[ev.cat]?C[ev.cat].i:"&#128204;";
-  var hu=document.createElement("div");hu.className="hu";
-
-  var thr=document.createElement("div");thr.className="thr";
-
   var fc=document.createElement("div");fc.className="fc"+(ev.exp?" exp":"");
 
   var fimg=document.createElement("div");fimg.className="fimg"+(ev.photo?" hp":"");
@@ -252,9 +299,7 @@ function mkFlyer(ev){
   fc.appendChild(fimg);fc.appendChild(fb);
   fc.addEventListener("click",(function(id){return function(){openDetail(id);};})(ev.id));
 
-  hu.appendChild(thr);
-  hu.appendChild(fc);
-  return hu;
+  return fc;
 }
 
 function openDetail(id){
