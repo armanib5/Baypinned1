@@ -96,6 +96,7 @@ function openVendorDetail(id) {
   var hoursSummary = [["mon", "Mon"], ["tue", "Tue"], ["wed", "Wed"], ["thu", "Thu"], ["fri", "Fri"], ["sat", "Sat"], ["sun", "Sun"]]
     .map(function (d) { return d[1] + ": " + ((v.hours && v.hours[d[0]]) || "Closed"); }).join("<br>");
   igrid.appendChild(mkIbox("Hours", hoursSummary));
+  igrid.appendChild(mkIbox("Menu / Offerings", v.menu || "Menu coming soon."));
   igrid.appendChild(mkIbox("Category", cat.l));
   body.appendChild(igrid);
 
@@ -127,7 +128,9 @@ function openVendorDetail(id) {
   dirBtn.textContent = "Directions";
   var editBtn = document.createElement("button"); editBtn.className = "ab dark"; editBtn.textContent = "Edit";
   editBtn.addEventListener("click", function () { openVendorForm(v.cat, v.id); });
-  btns.appendChild(favBtn); btns.appendChild(shareBtn); btns.appendChild(mapBtn2); btns.appendChild(dirBtn); btns.appendChild(editBtn);
+  var msgBtn = document.createElement("button"); msgBtn.className = "ab gray"; msgBtn.disabled = true;
+  msgBtn.style.opacity = ".5"; msgBtn.textContent = "Message (Coming Soon)";
+  btns.appendChild(favBtn); btns.appendChild(shareBtn); btns.appendChild(mapBtn2); btns.appendChild(dirBtn); btns.appendChild(editBtn); btns.appendChild(msgBtn);
   body.appendChild(btns);
 
   dp.appendChild(body);
@@ -235,6 +238,7 @@ function openVendorForm(defCat, vid, eventId) {
     "<label>Business Name *</label><input id='vn' type='text' placeholder='e.g. Xiong Farms'>" +
     "<label>Category</label><select id='vcat'>" + opts + "</select>" +
     "<label>Description</label><textarea id='vd' placeholder='Tell customers about your business...'></textarea>" +
+    "<label>Menu / Offerings</label><textarea id='vmenu' placeholder='List a few items or paste a menu link...'></textarea>" +
     "<label>Address</label><input id='va' type='text' placeholder='Street address'>" +
     "<label>Phone</label><input id='vph' type='text' placeholder='(408) 555-0100'>" +
     "<label>Email</label><input id='vem' type='text' placeholder='hello@business.com'>" +
@@ -253,7 +257,7 @@ function openVendorForm(defCat, vid, eventId) {
     var v = vendors.find(function (x) { return x.id === vid; });
     if (v) {
       function sv(i, val) { var el = document.getElementById(i); if (el) el.value = val || ""; }
-      sv("vn", v.name); sv("vd", v.desc); sv("va", v.address);
+      sv("vn", v.name); sv("vd", v.desc); sv("vmenu", v.menu); sv("va", v.address);
       sv("vph", v.contact && v.contact.phone); sv("vem", v.contact && v.contact.email);
       sv("vwb", v.website); sv("vig", v.social && v.social.instagram);
       document.getElementById("vcat").value = v.cat;
@@ -276,6 +280,7 @@ function subVendorForm() {
   var v = {
     id: vid || "vu" + Date.now(), name: name, cat: cat,
     desc: document.getElementById("vd").value.trim(),
+    menu: document.getElementById("vmenu").value.trim(),
     address: document.getElementById("va").value.trim(),
     contact: { phone: document.getElementById("vph").value.trim(), email: document.getElementById("vem").value.trim() },
     website: document.getElementById("vwb").value.trim(),
