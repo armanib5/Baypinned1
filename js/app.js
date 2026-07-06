@@ -622,10 +622,21 @@ function zMap(f){
   var cx=vp.clientWidth/2,cy=vp.clientHeight/2;
   mX=cx-(cx-mX)*(ns/mS);mY=cy-(cy-mY)*(ns/mS);mS=ns;applyMap();
 }
-function rMap(){mS=1;mX=0;mY=0;applyMap();}
+function rMap(){mS=1;centerMap();}
 function applyMap(){
   var m=document.getElementById("mainMap");
   if(m){m.style.transform="translate("+mX+"px,"+mY+"px) scale("+mS+")";m.style.transformOrigin="0 0";}
+}
+/* Centers the viewport on Plaza de Cesar Chavez (the SVG's main downtown
+   landmark, at 420,470) instead of defaulting to the map's top-left
+   corner - the map used to open needing a lot of manual panning just to
+   find it. */
+function centerMap(){
+  var vp=document.getElementById("mvp");
+  if(!vp||!vp.clientWidth)return;
+  mX=vp.clientWidth/2-420*mS;
+  mY=vp.clientHeight/2-470*mS;
+  applyMap();
 }
 function setupPan(){
   var vp=document.getElementById("mvp");if(!vp)return;
@@ -651,6 +662,7 @@ function showMap(){
   document.getElementById("adminSec").style.display="none";
   document.getElementById("nM").classList.add("on");
   document.getElementById("nB").classList.remove("on");
+  centerMap();
 }
 function scrollToday(){showBoards();document.getElementById("tdwrap").scrollIntoView({behavior:"smooth"});}
 function jumpTo(cat){
