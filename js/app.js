@@ -278,8 +278,19 @@ function mkPinSlot(card,idx){
   return slot;
 }
 
+/* Each flyer flips in place to reveal the vendors attached to that event
+   (with boost/featured status front and center) instead of only opening
+   the full detail modal. The tilt (from mkPinSlot) is applied to the
+   outer .flyer-flip wrapper so front and back tilt together; the flip
+   rotation itself lives on .flyer-flip-inner, so the two transforms don't
+   collide. */
 function mkFlyer(ev){
   var ico=C[ev.cat]?C[ev.cat].i:"&#128204;";
+
+  var flip=document.createElement("div");flip.className="flyer-flip";flip.id="fflip-"+ev.id;
+  var inner=document.createElement("div");inner.className="flyer-flip-inner";
+
+  var front=document.createElement("div");front.className="flyer-front";
   var fc=document.createElement("div");fc.className="fc"+(ev.exp?" exp":"");
 
   var fimg=document.createElement("div");fimg.className="fimg"+(ev.photo?" hp":"");
@@ -288,6 +299,9 @@ function mkFlyer(ev){
     fimg.innerHTML=ico;
     if(ev.exp){var etag=document.createElement("div");etag.className="etag";etag.textContent="Past";fimg.appendChild(etag);}
   }
+  var infoBtn=document.createElement("button");infoBtn.className="fyf-info";infoBtn.textContent="i";infoBtn.title="Full event info";
+  infoBtn.addEventListener("click",(function(id){return function(e){e.stopPropagation();openDetail(id);};})(ev.id));
+  fimg.appendChild(infoBtn);
 
   var fb=document.createElement("div");fb.className="fb";
   var rib=document.createElement("span");rib.className="rib "+ev.cat;rib.textContent=ev.lbl;
@@ -297,9 +311,66 @@ function mkFlyer(ev){
   fb.appendChild(rib);fb.appendChild(h3);fb.appendChild(fw);fb.appendChild(fa);
 
   fc.appendChild(fimg);fc.appendChild(fb);
-  fc.addEventListener("click",(function(id){return function(){openDetail(id);};})(ev.id));
+  front.appendChild(fc);
+  front.addEventListener("click",function(){flip.classList.add("flipped");});
 
-  return fc;
+  var back=mkFlyerBack(ev,flip);
+
+  inner.appendChild(front);inner.appendChild(back);
+  flip.appendChild(inner);
+  return flip;
+}
+
+function mkFlyerBack(ev,flipEl){
+  var back=document.createElement("div");back.className="flyer-back";
+
+  var hdr=document.createElement("div");hdr.className="fyb-hdr";
+  var h4=document.createElement("h4");h4.textContent="Vendors";
+  var xb=document.createElement("button");xb.className="fyb-x";xb.textContent="×";
+  xb.addEventListener("click",function(e){e.stopPropagation();flipEl.classList.remove("flipped");});
+  hdr.appendChild(h4);hdr.appendChild(xb);
+  back.appendChild(hdr);
+
+  var list=document.createElement("div");list.className="fyb-list";
+  var linked=(typeof eventVendors==="function")?eventVendors(ev):[];
+  linked=linked.slice().sort(function(a,b){
+    var av=(a.featured?2:0)+(a.boost&&a.boost.active?1:0);
+    var bv=(b.featured?2:0)+(b.boost&&b.boost.active?1:0);
+    return bv-av;
+  });
+  if(linked.length){
+    linked.forEach(function(v){
+      var row=document.createElement("div");row.className="fyb-vendor";
+      var nm=document.createElement("span");nm.textContent=v.name;
+      row.appendChild(nm);
+      if(v.featured||(v.boost&&v.boost.active)){
+        var badge=document.createElement("span");badge.className="fyb-badge";
+        badge.textContent=(v.boost&&v.boost.active)?vBoostLabel(v.boost.tier):"Featured";
+        row.appendChild(badge);
+      }
+      row.addEventListener("click",(function(id){return function(e){e.stopPropagation();openVendorDetail(id);};})(v.id));
+      list.appendChild(row);
+    });
+  }else{
+    var none=document.createElement("div");none.className="fyb-none";
+    none.textContent="No vendors listed yet.";
+    list.appendChild(none);
+  }
+  back.appendChild(list);
+
+  var cta=document.createElement("div");cta.className="fyb-cta";
+  cta.textContent="Want your business seen here? Boost or feature your listing.";
+  back.appendChild(cta);
+
+  var footer=document.createElement("div");footer.className="fyb-footer";
+  var addBtn=document.createElement("button");addBtn.className="fyb-btn add";addBtn.textContent="+ Add Vendor";
+  addBtn.addEventListener("click",(function(cat,eid){return function(e){e.stopPropagation();openVendorForm(cat,"",eid);};})(ev.cat,ev.id));
+  var flipBtn=document.createElement("button");flipBtn.className="fyb-btn back";flipBtn.textContent="Flip Back";
+  flipBtn.addEventListener("click",function(e){e.stopPropagation();flipEl.classList.remove("flipped");});
+  footer.appendChild(addBtn);footer.appendChild(flipBtn);
+  back.appendChild(footer);
+
+  return back;
 }
 
 function openDetail(id){
@@ -309,6 +380,7 @@ function openDetail(id){
   var ico=C[ev.cat]?C[ev.cat].i:"&#128204;";
   var dp=document.getElementById("detPanel");
   dp.innerHTML="";
+  dp.dataset.eid=id;
 
   var xb=document.createElement("button");xb.className="xbtn";xb.textContent="X";
   xb.onclick=cls;dp.appendChild(xb);
@@ -352,6 +424,24 @@ function openDetail(id){
   if(ev.fp)igrid.appendChild(mkIbox("From Plaza",ev.fp));
   if(ev.fd)igrid.appendChild(mkIbox("From Diridon",ev.fd));
   body.appendChild(igrid);
+
+  var regVendors=typeof eventVendors==="function"?eventVendors(ev):[];
+  if(regVendors.length){
+    var rvsec=document.createElement("div");rvsec.className="vsec";
+    var rvh3=document.createElement("h3");rvh3.textContent="Registered Vendors";
+    rvsec.appendChild(rvh3);
+    regVendors.forEach(function(v){
+      var rvi=document.createElement("div");rvi.className="vi";rvi.style.cursor="pointer";
+      var vcat=C[v.cat]?C[v.cat].l:v.cat;
+      rvi.innerHTML="<strong>"+v.name+"</strong> &middot; "+vcat+(v.featured?" &middot; Featured":"")+(v.boost&&v.boost.active?" &middot; "+vBoostLabel(v.boost.tier):"");
+      rvi.addEventListener("click",(function(vid){return function(){openVendorDetail(vid);};})(v.id));
+      rvsec.appendChild(rvi);
+    });
+    var addV=document.createElement("button");addV.className="sugbtn";addV.textContent="+ Add Your Business";
+    addV.onclick=(function(cat,eid){return function(){openVendorForm(cat,"",eid);};})(ev.cat,ev.id);
+    rvsec.appendChild(addV);
+    body.appendChild(rvsec);
+  }
 
   if(ev.vg&&ev.vg.length){
     var vsec=document.createElement("div");vsec.className="vsec";
@@ -532,10 +622,21 @@ function zMap(f){
   var cx=vp.clientWidth/2,cy=vp.clientHeight/2;
   mX=cx-(cx-mX)*(ns/mS);mY=cy-(cy-mY)*(ns/mS);mS=ns;applyMap();
 }
-function rMap(){mS=1;mX=0;mY=0;applyMap();}
+function rMap(){mS=1;centerMap();}
 function applyMap(){
   var m=document.getElementById("mainMap");
   if(m){m.style.transform="translate("+mX+"px,"+mY+"px) scale("+mS+")";m.style.transformOrigin="0 0";}
+}
+/* Centers the viewport on Plaza de Cesar Chavez (the SVG's main downtown
+   landmark, at 420,470) instead of defaulting to the map's top-left
+   corner - the map used to open needing a lot of manual panning just to
+   find it. */
+function centerMap(){
+  var vp=document.getElementById("mvp");
+  if(!vp||!vp.clientWidth)return;
+  mX=vp.clientWidth/2-420*mS;
+  mY=vp.clientHeight/2-470*mS;
+  applyMap();
 }
 function setupPan(){
   var vp=document.getElementById("mvp");if(!vp)return;
@@ -550,21 +651,18 @@ function showBoards(){
   document.getElementById("bView").style.display="block";
   document.getElementById("tdwrap").style.display="block";
   document.getElementById("mapSec").style.display="none";
-  document.getElementById("vendorSec").style.display="none";
   document.getElementById("adminSec").style.display="none";
   document.getElementById("nB").classList.add("on");
   document.getElementById("nM").classList.remove("on");
-  document.getElementById("nV").classList.remove("on");
 }
 function showMap(){
   document.getElementById("bView").style.display="none";
   document.getElementById("tdwrap").style.display="none";
   document.getElementById("mapSec").style.display="block";
-  document.getElementById("vendorSec").style.display="none";
   document.getElementById("adminSec").style.display="none";
   document.getElementById("nM").classList.add("on");
   document.getElementById("nB").classList.remove("on");
-  document.getElementById("nV").classList.remove("on");
+  centerMap();
 }
 function scrollToday(){showBoards();document.getElementById("tdwrap").scrollIntoView({behavior:"smooth"});}
 function jumpTo(cat){

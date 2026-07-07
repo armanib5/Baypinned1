@@ -1,10 +1,9 @@
-/* Vendor Hub — data, rendering, and interactions.
-   Depends on globals from js/app.js (C, evts, openDetail, showMap) and
-   js/storage.js (Storage). Loaded after both. */
+/* Vendors — data and interactions. Vendor profiles are surfaced inside
+   each event's detail view (see the "Registered Vendors" section built in
+   js/app.js openDetail) and as pins on the map, rather than as a separate
+   standalone page. Depends on globals from js/app.js (C, evts, openDetail,
+   showMap, cls) and js/storage.js (Storage). Loaded after both. */
 var vendors = [];
-var vActiveCat = "all";
-var vSearchTerm = "";
-var vShowFavOnly = false;
 var VFAV_KEY = "vendor-favs-v1";
 var VDATA_KEY = "vendors-v1";
 
@@ -13,6 +12,13 @@ function loadVendors() {
 }
 function saveVendors() { Storage.set(VDATA_KEY, vendors); }
 
+/* Runs immediately (not inside DOMContentLoaded) so `vendors` is already
+   populated by the time app.js's init() renders the boards - both files
+   listen for DOMContentLoaded, and app.js's listener was registered first
+   since its <script> tag comes first, so waiting until then would be too
+   late for the vendor lists on each flyer's back to have real data. */
+loadVendors();
+
 function getFavs() { return Storage.get(VFAV_KEY, []); }
 function isFav(id) { return getFavs().indexOf(id) >= 0; }
 function toggleFav(id) {
@@ -20,7 +26,6 @@ function toggleFav(id) {
   var i = favs.indexOf(id);
   if (i >= 0) favs.splice(i, 1); else favs.push(id);
   Storage.set(VFAV_KEY, favs);
-  renderVendorHub();
 }
 
 function vendorEvents(v) {
@@ -28,185 +33,108 @@ function vendorEvents(v) {
     return evts.find(function (e) { return e.id === id; });
   }).filter(Boolean);
 }
+function eventVendors(ev) {
+  return vendors.filter(function (v) { return (v.events || []).indexOf(ev.id) >= 0; });
+}
 
 function vBoostLabel(tier) {
   var labels = { flash: "Flash Boost", anchor: "Event Anchor", hood: "Neighborhood" };
   return labels[tier] || "Boosted";
 }
 
-function renderVendorHub() {
-  var grid = document.getElementById("vGrid");
-  if (!grid) return;
-  grid.innerHTML = "";
+/* Vendor profile detail — reuses the same .dpanel/.dhero/.dbody/.igrid
+   markup the event detail modal already uses, so it looks consistent
+   without needing its own CSS. */
+function openVendorDetail(id) {
+  var v = vendors.find(function (x) { return x.id === id; }); if (!v) return;
+  var cat = C[v.cat] || { l: v.cat, i: "&#128204;", c: "#666" };
+  var mu = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(v.address || v.name);
+  var dp = document.getElementById("detPanel");
+  dp.innerHTML = "";
 
-  var list = vendors.filter(function (v) {
-    if (vShowFavOnly && !isFav(v.id)) return false;
-    if (vActiveCat !== "all" && v.cat !== vActiveCat) return false;
-    if (vSearchTerm) {
-      var hay = (v.name + " " + v.desc).toLowerCase();
-      if (hay.indexOf(vSearchTerm.toLowerCase()) < 0) return false;
-    }
-    return true;
-  });
+  var xb = document.createElement("button"); xb.className = "xbtn"; xb.textContent = "X";
+  xb.onclick = cls; dp.appendChild(xb);
 
-  list.sort(function (a, b) {
-    var av = (a.featured ? 2 : 0) + (a.boost && a.boost.active ? 1 : 0);
-    var bv = (b.featured ? 2 : 0) + (b.boost && b.boost.active ? 1 : 0);
-    if (bv !== av) return bv - av;
-    return a.name.localeCompare(b.name);
-  });
+  var hero = document.createElement("div"); hero.className = "dhero" + (v.cover ? " hp" : "");
+  if (v.cover) { hero.style.backgroundImage = "url(" + v.cover + ")"; hero.style.backgroundSize = "cover"; hero.style.backgroundPosition = "center"; }
+  else { hero.innerHTML = v.logo ? v.logo : cat.i; }
+  dp.appendChild(hero);
 
-  if (!list.length) {
-    var none = document.createElement("div");
-    none.style.cssText = "grid-column:1/-1;color:rgba(218,184,112,.4);padding:20px;font-size:13px;";
-    none.textContent = "No vendors match yet.";
-    grid.appendChild(none);
-  } else {
-    list.forEach(function (v) { grid.appendChild(mkVendorCard(v)); });
+  var body = document.createElement("div"); body.className = "dbody";
+
+  var rib = document.createElement("span"); rib.className = "rib " + v.cat; rib.style.marginBottom = "9px"; rib.textContent = cat.l;
+  var h2 = document.createElement("h2"); h2.textContent = v.name;
+  body.appendChild(rib); body.appendChild(h2);
+
+  if (v.featured || (v.boost && v.boost.active)) {
+    var badges = document.createElement("div"); badges.style.cssText = "display:flex;gap:6px;margin:4px 0 8px;flex-wrap:wrap;";
+    if (v.featured) { var fb = document.createElement("span"); fb.className = "dtag"; fb.style.cssText = "background:var(--go);color:#fff;border:none;"; fb.textContent = "Featured"; badges.appendChild(fb); }
+    if (v.boost && v.boost.active) { var bb = document.createElement("span"); bb.className = "dtag"; bb.style.cssText = "background:var(--g);color:#fff;border:none;"; bb.textContent = vBoostLabel(v.boost.tier); badges.appendChild(bb); }
+    body.appendChild(badges);
   }
 
-  var addHu = document.createElement("div"); addHu.className = "hu";
-  var afc = document.createElement("div"); afc.className = "afc";
-  afc.innerHTML = "<div class='ap'>+</div><div class='al'>Add Your Business</div>";
-  afc.addEventListener("click", function () { openVendorForm(""); });
-  addHu.appendChild(afc);
-  grid.appendChild(addHu);
+  var dloc = document.createElement("div"); dloc.className = "dloc";
+  var dadr = document.createElement("span"); dadr.className = "dadr"; dadr.textContent = v.address || "Address on file";
+  var mapBtn = document.createElement("a"); mapBtn.className = "ab blue"; mapBtn.href = mu; mapBtn.target = "_blank"; mapBtn.textContent = "Open in Maps";
+  dloc.appendChild(dadr); dloc.appendChild(mapBtn);
+  body.appendChild(dloc);
 
-  renderVendorPins();
-}
+  var desc = document.createElement("p"); desc.className = "ddesc"; desc.textContent = v.desc || "No description yet.";
+  body.appendChild(desc);
 
-function mkVendorCard(v) {
-  var cat = C[v.cat] || { l: v.cat, i: "&#128204;", c: "#666" };
-
-  var hu = document.createElement("div"); hu.className = "hu";
-  var thr = document.createElement("div"); thr.className = "thr";
-  var flip = document.createElement("div"); flip.className = "vflip"; flip.id = "vflip-" + v.id;
-  var inner = document.createElement("div"); inner.className = "vflip-inner";
-
-  var front = mkVendorFront(v, cat, flip);
-  var back = mkVendorBack(v, flip);
-
-  inner.appendChild(front); inner.appendChild(back);
-  flip.appendChild(inner);
-  hu.appendChild(thr); hu.appendChild(flip);
-  return hu;
-}
-
-function mkVendorFront(v, cat, flipEl) {
-  var front = document.createElement("div"); front.className = "vcard vcard-front";
-
-  var img = document.createElement("div"); img.className = "vimg" + (v.cover ? " hp" : "");
-  if (v.cover) { img.style.backgroundImage = "url(" + v.cover + ")"; img.style.backgroundSize = "cover"; img.style.backgroundPosition = "center"; }
-  else { img.innerHTML = v.logo ? v.logo : cat.i; }
-  if (v.featured) { var fb = document.createElement("div"); fb.className = "vbadge feat"; fb.textContent = "Featured"; img.appendChild(fb); }
-  if (v.boost && v.boost.active) { var bb = document.createElement("div"); bb.className = "vbadge boost"; bb.textContent = vBoostLabel(v.boost.tier); img.appendChild(bb); }
-
-  var body = document.createElement("div"); body.className = "vbody";
-  var rib = document.createElement("span"); rib.className = "rib " + v.cat; rib.textContent = cat.l;
-  var h3 = document.createElement("h3"); h3.textContent = v.name;
-  var rate = document.createElement("div"); rate.className = "vrate"; rate.textContent = "Rating coming soon";
-  body.appendChild(rib); body.appendChild(h3); body.appendChild(rate);
-
-  var hint = document.createElement("div"); hint.className = "vhint"; hint.textContent = "Tap to flip";
-
-  front.appendChild(img); front.appendChild(body); front.appendChild(hint);
-  front.addEventListener("click", function () { flipEl.classList.add("flipped"); });
-  return front;
-}
-
-function mkVendorBack(v, flipEl) {
-  var back = document.createElement("div"); back.className = "vcard vcard-back";
-
-  var xb = document.createElement("button"); xb.className = "vback-x"; xb.textContent = "X";
-  xb.addEventListener("click", function (e) { e.stopPropagation(); flipEl.classList.remove("flipped"); });
-  back.appendChild(xb);
-
-  var scroll = document.createElement("div"); scroll.className = "vback-scroll";
-
-  var name = document.createElement("div"); name.className = "vback-name"; name.textContent = v.name;
-  scroll.appendChild(name);
-
-  var desc = document.createElement("p"); desc.className = "vback-desc"; desc.textContent = v.desc || "No description yet.";
-  scroll.appendChild(desc);
-
-  var crow = document.createElement("div"); crow.className = "vcontact-row";
+  var crow = document.createElement("div"); crow.className = "dtags";
   if (v.contact && v.contact.phone) { var a = document.createElement("a"); a.className = "ab blue"; a.href = "tel:" + v.contact.phone; a.textContent = "Call"; crow.appendChild(a); }
   if (v.contact && v.contact.email) { var a2 = document.createElement("a"); a2.className = "ab gray"; a2.href = "mailto:" + v.contact.email; a2.textContent = "Email"; crow.appendChild(a2); }
   if (v.website) { var a3 = document.createElement("a"); a3.className = "ab green"; a3.href = v.website; a3.target = "_blank"; a3.textContent = "Website"; crow.appendChild(a3); }
-  if (crow.children.length) scroll.appendChild(crow);
-
-  var socialKeys = Object.keys(v.social || {}).filter(function (k) { return v.social[k]; });
-  if (socialKeys.length) {
-    var srow = document.createElement("div"); srow.className = "vsocial-row";
-    socialKeys.forEach(function (k) {
-      var s = document.createElement("a"); s.href = v.social[k]; s.target = "_blank"; s.className = "vsoc";
-      s.textContent = k.charAt(0).toUpperCase() + k.slice(1);
-      srow.appendChild(s);
-    });
-    scroll.appendChild(srow);
-  }
-
-  var hoursLbl = document.createElement("div"); hoursLbl.className = "vsec-lbl"; hoursLbl.textContent = "Hours";
-  scroll.appendChild(hoursLbl);
-  var hgrid = document.createElement("div"); hgrid.className = "vhours";
-  [["mon", "Mon"], ["tue", "Tue"], ["wed", "Wed"], ["thu", "Thu"], ["fri", "Fri"], ["sat", "Sat"], ["sun", "Sun"]].forEach(function (d) {
-    var row = document.createElement("div"); row.className = "vhrow";
-    var l = document.createElement("span"); l.textContent = d[1];
-    var r = document.createElement("span"); r.textContent = (v.hours && v.hours[d[0]]) || "Closed";
-    row.appendChild(l); row.appendChild(r);
-    hgrid.appendChild(row);
+  Object.keys(v.social || {}).forEach(function (k) {
+    if (v.social[k]) { var s = document.createElement("a"); s.className = "ab dark"; s.href = v.social[k]; s.target = "_blank"; s.textContent = k.charAt(0).toUpperCase() + k.slice(1); crow.appendChild(s); }
   });
-  scroll.appendChild(hgrid);
+  if (crow.children.length) body.appendChild(crow);
+
+  var igrid = document.createElement("div"); igrid.className = "igrid";
+  function mkIbox(label, val) { var b = document.createElement("div"); b.className = "ibox"; b.innerHTML = "<h4>" + label + "</h4><p>" + (val || "See vendor.") + "</p>"; return b; }
+  var hoursSummary = [["mon", "Mon"], ["tue", "Tue"], ["wed", "Wed"], ["thu", "Thu"], ["fri", "Fri"], ["sat", "Sat"], ["sun", "Sun"]]
+    .map(function (d) { return d[1] + ": " + ((v.hours && v.hours[d[0]]) || "Closed"); }).join("<br>");
+  igrid.appendChild(mkIbox("Hours", hoursSummary));
+  igrid.appendChild(mkIbox("Menu / Offerings", v.menu || "Menu coming soon."));
+  igrid.appendChild(mkIbox("Category", cat.l));
+  body.appendChild(igrid);
 
   var vEvts = vendorEvents(v);
   if (vEvts.length) {
-    var eh = document.createElement("div"); eh.className = "vsec-lbl"; eh.textContent = "Upcoming Events";
-    scroll.appendChild(eh);
+    var vsec = document.createElement("div"); vsec.className = "vsec";
+    var vh3 = document.createElement("h3"); vh3.textContent = "Upcoming Events";
+    vsec.appendChild(vh3);
     vEvts.forEach(function (ev) {
-      var el = document.createElement("div"); el.className = "vevt";
-      el.textContent = ev.t + " — " + ev.w;
-      el.addEventListener("click", function (e) { e.stopPropagation(); cls(); openDetail(ev.id); });
-      scroll.appendChild(el);
+      var vi = document.createElement("div"); vi.className = "vi"; vi.style.cursor = "pointer";
+      vi.textContent = ev.t + " — " + ev.w;
+      vi.addEventListener("click", function () { openDetail(ev.id); });
+      vsec.appendChild(vi);
     });
+    body.appendChild(vsec);
   }
 
-  var locLbl = document.createElement("div"); locLbl.className = "vsec-lbl"; locLbl.textContent = "Location";
-  scroll.appendChild(locLbl);
-  var loc = document.createElement("div"); loc.className = "vloc-row"; loc.textContent = v.address || "Address on file";
-  scroll.appendChild(loc);
-
-  var btnrow = document.createElement("div"); btnrow.className = "vbtnrow";
-  var mapBtn = document.createElement("button"); mapBtn.className = "ab blue"; mapBtn.textContent = "View on Map";
-  mapBtn.addEventListener("click", function (e) { e.stopPropagation(); showVendorOnMap(v.id); });
+  var btns = document.createElement("div"); btns.className = "dbtnrow";
+  var favBtn = document.createElement("button");
+  function paintFav() { favBtn.className = "ab " + (isFav(v.id) ? "dark" : "gray"); favBtn.textContent = isFav(v.id) ? "Saved" : "Save"; }
+  paintFav();
+  favBtn.addEventListener("click", function () { toggleFav(v.id); paintFav(); });
+  var shareBtn = document.createElement("button"); shareBtn.className = "ab gray"; shareBtn.textContent = "Share";
+  shareBtn.addEventListener("click", function () { shareVendor(v.id); });
+  var mapBtn2 = document.createElement("button"); mapBtn2.className = "ab blue"; mapBtn2.textContent = "View on Map";
+  mapBtn2.addEventListener("click", function () { showVendorOnMap(v.id); });
   var dirBtn = document.createElement("a"); dirBtn.className = "ab green"; dirBtn.target = "_blank";
   dirBtn.href = "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(v.address || v.name);
   dirBtn.textContent = "Directions";
-  btnrow.appendChild(mapBtn); btnrow.appendChild(dirBtn);
-  scroll.appendChild(btnrow);
-
-  var anLbl = document.createElement("div"); anLbl.className = "vsec-lbl"; anLbl.textContent = "Vendor Analytics";
-  scroll.appendChild(anLbl);
-  var an = document.createElement("div"); an.className = "vanalytics";
-  an.textContent = "Profile views, favorites, and click-throughs coming soon.";
-  scroll.appendChild(an);
-
-  back.appendChild(scroll);
-
-  var footer = document.createElement("div"); footer.className = "vback-footer";
-  var favBtn = document.createElement("button");
-  favBtn.className = "ab " + (isFav(v.id) ? "dark" : "gray");
-  favBtn.textContent = isFav(v.id) ? "Saved" : "Save";
-  favBtn.addEventListener("click", function (e) { e.stopPropagation(); toggleFav(v.id); });
-  var shareBtn = document.createElement("button"); shareBtn.className = "ab gray"; shareBtn.textContent = "Share";
-  shareBtn.addEventListener("click", function (e) { e.stopPropagation(); shareVendor(v.id); });
+  var editBtn = document.createElement("button"); editBtn.className = "ab dark"; editBtn.textContent = "Edit";
+  editBtn.addEventListener("click", function () { openVendorForm(v.cat, v.id); });
   var msgBtn = document.createElement("button"); msgBtn.className = "ab gray"; msgBtn.disabled = true;
-  msgBtn.style.opacity = ".5"; msgBtn.textContent = "Message (Soon)";
-  var editBtn = document.createElement("button"); editBtn.className = "ab green"; editBtn.textContent = "Edit";
-  editBtn.addEventListener("click", function (e) { e.stopPropagation(); openVendorForm(v.cat, v.id); });
-  footer.appendChild(favBtn); footer.appendChild(shareBtn); footer.appendChild(msgBtn); footer.appendChild(editBtn);
-  back.appendChild(footer);
+  msgBtn.style.opacity = ".5"; msgBtn.textContent = "Message (Coming Soon)";
+  btns.appendChild(favBtn); btns.appendChild(shareBtn); btns.appendChild(mapBtn2); btns.appendChild(dirBtn); btns.appendChild(editBtn); btns.appendChild(msgBtn);
+  body.appendChild(btns);
 
-  return back;
+  dp.appendChild(body);
+  document.getElementById("detOv").classList.add("on");
 }
 
 function shareVendor(id) {
@@ -238,45 +166,13 @@ function renderVendorPins() {
     txt.setAttribute("text-anchor", "middle"); txt.setAttribute("font-size", "10");
     txt.style.pointerEvents = "none"; txt.innerHTML = cat.i;
     pg.appendChild(rect); pg.appendChild(txt);
-    pg.addEventListener("click", function () { showVendors(); flipVendorCard(v.id); });
+    pg.addEventListener("click", function () { openVendorDetail(v.id); });
     g.appendChild(pg);
   });
 }
 function hVendorPin(id) {
   document.querySelectorAll(".vp.pulse").forEach(function (p) { p.classList.remove("pulse"); });
   var p = document.getElementById("vpin-" + id); if (p) p.classList.add("pulse");
-}
-function flipVendorCard(id) {
-  var el = document.getElementById("vflip-" + id);
-  if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.add("flipped"); }
-}
-
-/* ── SEARCH / FILTER TOOLBAR ── */
-function vSetCat(btn, cat) {
-  vActiveCat = cat;
-  var wrap = btn.parentElement;
-  wrap.querySelectorAll(".cc").forEach(function (b) { b.classList.remove("on"); });
-  btn.classList.add("on");
-  renderVendorHub();
-}
-function vSetSearch(val) { vSearchTerm = val; renderVendorHub(); }
-function vToggleFavFilter(btn) {
-  vShowFavOnly = !vShowFavOnly;
-  btn.classList.toggle("on", vShowFavOnly);
-  renderVendorHub();
-}
-
-/* ── NAV ── */
-function showVendors() {
-  document.getElementById("bView").style.display = "none";
-  document.getElementById("tdwrap").style.display = "none";
-  document.getElementById("mapSec").style.display = "none";
-  document.getElementById("vendorSec").style.display = "block";
-  document.getElementById("adminSec").style.display = "none";
-  document.getElementById("nV").classList.add("on");
-  document.getElementById("nB").classList.remove("on");
-  document.getElementById("nM").classList.remove("on");
-  renderVendorHub();
 }
 
 /* ── ADMIN MODERATION PLACEHOLDER ──
@@ -291,7 +187,6 @@ function showAdmin() {
   document.getElementById("bView").style.display = "none";
   document.getElementById("tdwrap").style.display = "none";
   document.getElementById("mapSec").style.display = "none";
-  document.getElementById("vendorSec").style.display = "none";
   document.getElementById("adminSec").style.display = "block";
   renderAdminList();
 }
@@ -336,13 +231,14 @@ function renderAdminList() {
 /* ── ADD / EDIT FORM (a lightweight vendor dashboard placeholder — no
    real auth yet, so anyone can edit any listing, same permission model
    the existing event flyer form already uses) ── */
-function openVendorForm(defCat, vid) {
+function openVendorForm(defCat, vid, eventId) {
   var fp = document.getElementById("vfrmPanel");
   var opts = Object.entries(C).map(function (e) { return "<option value='" + e[0] + "'>" + e[1].l + "</option>"; }).join("");
   fp.innerHTML = "<div class='fi'><h2>" + (vid ? "Edit Your Business" : "Add Your Business") + "</h2>" +
     "<label>Business Name *</label><input id='vn' type='text' placeholder='e.g. Xiong Farms'>" +
     "<label>Category</label><select id='vcat'>" + opts + "</select>" +
     "<label>Description</label><textarea id='vd' placeholder='Tell customers about your business...'></textarea>" +
+    "<label>Menu / Offerings</label><textarea id='vmenu' placeholder='List a few items or paste a menu link...'></textarea>" +
     "<label>Address</label><input id='va' type='text' placeholder='Street address'>" +
     "<label>Phone</label><input id='vph' type='text' placeholder='(408) 555-0100'>" +
     "<label>Email</label><input id='vem' type='text' placeholder='hello@business.com'>" +
@@ -353,6 +249,7 @@ function openVendorForm(defCat, vid) {
     "<div class='facts'><button class='bcan' id='vfrmCan'>Cancel</button><button class='bsub' id='vfrmSub'>Save Business</button></div>" +
     "</div>";
   fp.dataset.vid = vid || "";
+  fp.dataset.eventId = eventId || "";
   if (defCat) document.getElementById("vcat").value = defCat;
   document.getElementById("vfrmCan").onclick = vCls;
   document.getElementById("vfrmSub").onclick = subVendorForm;
@@ -360,7 +257,7 @@ function openVendorForm(defCat, vid) {
     var v = vendors.find(function (x) { return x.id === vid; });
     if (v) {
       function sv(i, val) { var el = document.getElementById(i); if (el) el.value = val || ""; }
-      sv("vn", v.name); sv("vd", v.desc); sv("va", v.address);
+      sv("vn", v.name); sv("vd", v.desc); sv("vmenu", v.menu); sv("va", v.address);
       sv("vph", v.contact && v.contact.phone); sv("vem", v.contact && v.contact.email);
       sv("vwb", v.website); sv("vig", v.social && v.social.instagram);
       document.getElementById("vcat").value = v.cat;
@@ -378,10 +275,12 @@ function subVendorForm() {
   var name = document.getElementById("vn").value.trim();
   if (!name) { alert("Please add a business name."); return; }
   var vid = document.getElementById("vfrmPanel").dataset.vid;
+  var eventId = document.getElementById("vfrmPanel").dataset.eventId;
   var cat = document.getElementById("vcat").value;
   var v = {
     id: vid || "vu" + Date.now(), name: name, cat: cat,
     desc: document.getElementById("vd").value.trim(),
+    menu: document.getElementById("vmenu").value.trim(),
     address: document.getElementById("va").value.trim(),
     contact: { phone: document.getElementById("vph").value.trim(), email: document.getElementById("vem").value.trim() },
     website: document.getElementById("vwb").value.trim(),
@@ -389,7 +288,7 @@ function subVendorForm() {
     hours: {}, featured: false, verified: false,
     boost: { tier: null, active: false, until: "", radius: null },
     mx: 380 + (Math.random() - 0.5) * 120, my: 420 + (Math.random() - 0.5) * 80,
-    city: "sj", events: [], gallery: [], logo: "", cover: "", status: "pending"
+    city: "sj", events: eventId ? [eventId] : [], gallery: [], logo: "", cover: "", status: "pending"
   };
   function done() {
     if (vid) {
@@ -397,12 +296,18 @@ function subVendorForm() {
       if (i >= 0) {
         var old = vendors[i];
         v.hours = old.hours; v.featured = old.featured; v.boost = old.boost;
-        v.mx = old.mx; v.my = old.my; v.events = old.events; v.gallery = old.gallery; v.status = old.status;
+        v.mx = old.mx; v.my = old.my; v.gallery = old.gallery; v.status = old.status;
         v.logo = v.logo || old.logo; v.cover = v.cover || old.cover;
+        v.events = old.events || [];
+        if (eventId && v.events.indexOf(eventId) < 0) v.events.push(eventId);
         vendors[i] = v;
       }
     } else vendors.push(v);
-    saveVendors(); vCls(); renderVendorHub();
+    saveVendors(); vCls(); renderVendorPins();
+    if (typeof renderBoards === "function") renderBoards();
+    if (document.getElementById("detOv").classList.contains("on") && document.getElementById("detPanel").dataset.eid) {
+      openDetail(document.getElementById("detPanel").dataset.eid);
+    }
   }
   var logoFile = document.getElementById("vlg").files[0];
   var coverFile = document.getElementById("vcv").files[0];
@@ -420,7 +325,6 @@ function subVendorForm() {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-  loadVendors();
-  renderVendorHub();
+  renderVendorPins();
   maybeShowAdminNav();
 });
